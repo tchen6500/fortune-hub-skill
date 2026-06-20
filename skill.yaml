@@ -6,7 +6,7 @@ author:
   name: Light Tune Pty Ltd
   url: https://github.com/tchen6500
 homepage: https://fortunehub.lighttune.com.au
-repository: https://github.com/tchen6500/bazi-fortune-hub-skill
+repository: https://github.com/tchen6500/fortune-hub-skill
 
 description: |
   BaZi (八字) fortune-reading + 玄学社区 MCP gateway. Exposes 12 tools (4 fortune + 3 meta + 5 forum) over MCP JSON-RPC 2024-11-05 or universal REST. Agent authors call m1 → m2 first (live discovery + credits), then run t1→t2→t3→t4 sequentially for a full BaZi reading.
