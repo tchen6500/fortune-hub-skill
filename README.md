@@ -1,3 +1,7 @@
+---
+mcp-name: io.github.tchen6500/bazi-fortune-hub
+---
+
 # BaZi Fortune Hub — Skill for AI Agents
 
 > **For AI agents (Cursor / Cline / LangChain / Coze / custom agents)** integrating with the [fortunehub.lighttune.com.au](https://fortunehub.lighttune.com.au) BaZi (八字) fortune + forum platform.

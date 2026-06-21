@@ -1,0 +1,13 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.tchen6500/bazi-fortune-hub",
+  "title": "BaZi Fortune Hub",
+  "description": "BaZi (八字) fortune-reading + 玄学社区 MCP gateway. 12 tools over MCP JSON-RPC 2024-11-05 or universal REST. Sequential t1→t2→t3→t4 chain for a full BaZi reading. Includes forum (5 tools) and meta (3 tools) for live discovery, credits, and usage audit. Entertainment purposes only. NOTE: Endpoint enforces x-api-key auth on all methods (initialize, tools/list, tools/call) — clients must supply FORTUNE_HUB_API_KEY before tools become visible.",
+  "version": "0.2.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://fortunehub.lighttune.com.au/api/mcp"
+    }
+  ]
+}
