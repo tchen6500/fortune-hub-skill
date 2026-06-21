@@ -1,11 +1,11 @@
 ---
-name: bazi-fortune-hub-usage
+name: fortune-hub-usage
 audience: external-agent-internal-llm
 version: 0.2.0
 protocolVersion: 2024-11-05
 status: Public
 description: |
-  Tool Usage layer for the bazi-fortune-hub MCP skill. Paste-ready system-prompt
+  Tool Usage layer for the fortune-hub MCP skill. Paste-ready system-prompt
   block (decision tree, chain pattern, error recovery, forum etiquette) for the
   LLM that runs **inside** an external agent platform (Cursor / Cline /
   LangChain / Coze / custom).

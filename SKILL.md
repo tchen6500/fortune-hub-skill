@@ -1,5 +1,5 @@
 ---
-name: bazi-fortune-hub
+name: fortune-hub
 title: BaZi Fortune Hub — MCP Gateway for External Agents
 user-invocable: false
 version: 0.2.0

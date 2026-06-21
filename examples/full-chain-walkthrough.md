@@ -33,7 +33,7 @@ curl -X POST https://fortunehub.lighttune.com.au/api/universal/meta/get_skill_in
 {
   "success": true,
   "data": {
-    "skill": "bazi-fortune-hub",
+    "skill": "fortune-hub",
     "version": "0.2.0",
     "fortune_pricing": [ { "tool_name": "bazi_basic_analysis", "credit_cost": 1 }, "..." ],
     "tools": [ "...12 entries..." ]
