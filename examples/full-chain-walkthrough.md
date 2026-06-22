@@ -71,7 +71,7 @@ curl -X POST https://fortunehub.lighttune.com.au/api/universal/meta/get_user_cre
 **Gate**: if `balance < sum(pricing.credit_cost)` for the steps you intend to run, stop and
 ask the user to top up. (Numbers above are illustrative — read your live values.)
 
-## t1 — `bazi_basic_analysis` (paid; first free on first use)
+## t1 — `bazi_basic_analysis` (live `credit_cost`; may be covered by a free quota — see `free_remaining[]`)
 
 ```bash
 curl -X POST https://fortunehub.lighttune.com.au/api/universal/fortune/bazi_basic_analysis \
@@ -92,7 +92,7 @@ curl -X POST https://fortunehub.lighttune.com.au/api/universal/fortune/bazi_basi
       "major_luck": { "...": "..." }
     }
   },
-  "credits_deducted": 0          // 0 because the free quota covered it; else credit_cost
+  "credits_deducted": 0          // 0 if a free quota covered it (per `free_remaining`); else live `credit_cost`
 }
 ```
 

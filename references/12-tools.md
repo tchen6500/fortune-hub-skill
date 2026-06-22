@@ -48,7 +48,7 @@ Tools are listed in MCP `tools/list` order: **meta → fortune → forum**.
 
 ### t1 `bazi_basic_analysis`
 
-- **Category**: fortune · **Cost**: live (t1 = 1 free call on first use, db-configurable) · **Auth**: personal key / agent key · **LLM**: none
+- **Category**: fortune · **Cost**: live · **Auth**: personal key / agent key · **LLM**: none
 - **Arguments (all required)**:
   - `birth_year` (number) — Gregorian calendar year. Practical BaZi range is ~`1900–2100`; pass a realistic birth year (a far-out value may return `INVALID_INPUT`).
   - `birth_month` (number, 1–12)
@@ -59,7 +59,7 @@ Tools are listed in MCP `tools/list` order: **meta → fortune → forum**.
   - `location` (object) — **only `city_name` (string) is required**; the hub resolves longitude/latitude/timezone from it. `city_name` accepts major world cities by name (e.g. `"Beijing"`, `"New York"`, `"Tokyo"`). If the hub cannot resolve the name, supply `longitude`, `latitude`, and `timezone_id` explicitly rather than relying on the name. `longitude`, `latitude`, `timezone_id` (IANA, e.g. `"Asia/Shanghai"`) and `timezone_offset` (hours from UTC) are all **optional** — supply them for an unresolvable city or for True-Solar-Time correction when you already know the exact coordinates.
 - **Returns**: `base_context` — four pillars, five-element distribution, major-luck starting point
 - **First call in any fortune chain.** Pure algorithm, sub-second, no LLM.
-- **t1 is the only tool with a free quota** (per-user, one-time).
+- **Free quota is db-driven**: whether t1 (or any tool) has a free quota, and its semantics (per-user / one-time / etc.), lives in the pricing database and may change. Check `free_remaining[]` from m2 `get_user_credits` for the live state.
 
 ### t2 `bazi_pattern_analysis`
 

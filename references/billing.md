@@ -7,7 +7,7 @@
 ## Core rules
 
 1. **Deduct-on-success**: credit is only deducted when the tool call succeeds. For a single tool call, no refund is needed on failure. For a chain (t1→t2→t3→t4), each step deducts independently — no chain-level rollback needed.
-2. **Free quota (t1 only)**: `bazi_basic_analysis` is the only tool with a free quota. When the free quota is available, the call returns `creditsDeducted: 0, fromFreeQuota: true`. t2–t4 currently have no free quota (db-configurable). Free quota is per-user, one-time, non-resetting.
+2. **Free quota (db-driven)**: which tools have a free quota — and its semantics (per-user, one-time, recurring, etc.) — is configured in the pricing database and may change. When a free quota covers a call, the response carries `creditsDeducted: 0, fromFreeQuota: true`; otherwise `creditsDeducted` equals the live `credit_cost`. The only reliable source of truth is the live m2 `get_user_credits` response (`free_remaining[]`).
 3. **Live `credit_cost` from db**: numbers change. Always read from the pricing database at runtime. m1 `get_skill_info.fortune_pricing` and m2 `get_user_credits.pricing[]` both expose live values; the agent should prefer m2 for the most current state (m1 may be cached briefly).
 4. **No separate LLM charge**: `credit_cost` for t2 / t4 includes the LLM cost. There is no token line item.
 5. **Chain pattern (OneShot)**: t1→t2→t3→t4 are 4 separate `tools/call` (not a single batched call). Each step deducts independently on success.
@@ -17,7 +17,7 @@
 
 ```
 1. m2 get_user_credits           → confirm balance ≥ sum(fortune_pricing)
-2. t1 bazi_basic_analysis        → base_context  (0 credits if free quota available, else credit_cost)
+2. t1 bazi_basic_analysis        → base_context  (deducted per live `credit_cost`; covered by `free_remaining` if a free quota applies)
 3. t2 bazi_pattern_analysis      → pattern_result  (1 LLM call, ~25s)
 4. t3 bigluck_year_analysis      → year_analysis_result  (uses t1 + t2)
 5. t4 bigluck_year_fortune_eval  → final reading  (1 LLM call, ~30–90s)

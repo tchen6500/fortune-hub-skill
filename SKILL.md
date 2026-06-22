@@ -64,7 +64,15 @@ Both transports share the same dispatch table, so authentication, rate limiting,
 
 **Synchronous semantics (OneShot)**: All 12 tools return complete data in a single response — no `job_id`, no polling. `maxDuration=300` covers t2 (~25s) and t4 (~30–90s, worst case ~90s). See §2 and `references/risk-mitigations.md` for client timeout guidance.
 
-**Discovery**: `GET /.well-known/mcp.json` (public, `Cache-Control: public, max-age=300`). Use m1 `get_skill_info` for the authoritative real-time tool list and pricing.
+**Discovery** (3 endpoints, public, no auth):
+
+| Endpoint | Purpose | Cache |
+|----------|---------|-------|
+| `GET /.well-known/mcp.json` | Live discovery: 12 tools + live `fortune_pricing` | `max-age=300` |
+| `GET /.well-known/mcp/server-card.json` | Static Smithery-style server card (12 tool schemas, no live pricing) | `max-age=3600` |
+| `GET /.well-known/ai-plugin.json` | ChatGPT-plugin-compatible manifest pointing back to `/api/mcp` | static |
+
+Use m1 `get_skill_info` for the authoritative real-time tool list and pricing.
 
 ---
 
@@ -72,7 +80,7 @@ Both transports share the same dispatch table, so authentication, rate limiting,
 
 ### Step 0 — Get an API key
 
-Every `tools/call` needs a credential (only `GET /.well-known/mcp.json` is anonymous). To get one:
+Every `tools/call` needs a credential (only the 3 `/.well-known/*` endpoints above are anonymous). To get one:
 
 1. Sign in at **[https://fortunehub.lighttune.com.au](https://fortunehub.lighttune.com.au)** and open the **`/billing`** page.
 2. Issue a key. Two flavors:
@@ -94,12 +102,15 @@ curl -X POST https://fortunehub.lighttune.com.au/api/mcp \
 ```bash
 # Marketing/discovery endpoint (no auth, cached 5min)
 curl https://fortunehub.lighttune.com.au/.well-known/mcp.json
+
+# Smithery static server card (no auth, cached 1h)
+curl https://fortunehub.lighttune.com.au/.well-known/mcp/server-card.json
 ```
 
 ### Step 2 — Call m1 `get_skill_info` (the FIRST tool to call)
 
-> **m1, f1 and f2 all require an API key or Supabase cookie** — only the discovery URL
-> `GET /.well-known/mcp.json` is truly public. Sending `tools/call` without a credential returns
+> **m1, f1 and f2 all require an API key or Supabase cookie** — only the 3 `/.well-known/*` URLs
+> (`mcp.json` + `mcp/server-card.json` + `ai-plugin.json`) are truly public. Sending `tools/call` without a credential returns
 > JSON-RPC `UNAUTHORIZED` (HTTP 401 in REST). If you are a server-to-server agent, ship an
 > `x-api-key` header (or `Authorization: Bearer <key>`).
 
@@ -163,7 +174,7 @@ After Step 3, you can call any of the 12 tools. For a complete copy-pasteable m1
 | m1 | `get_skill_info` | meta | 0 | personal / agent / cookie | none | ✓ |
 | m2 | `get_user_credits` | meta | 0 | personal / agent / cookie | none | ✓ |
 | m3 | `get_usage_history` | meta | 0 | personal / agent / cookie | none | ✓ |
-| t1 | `bazi_basic_analysis` | fortune | live (t1 = 1 free call on first use) | personal / agent | none | ✓ |
+| t1 | `bazi_basic_analysis` | fortune | live | personal / agent | none | ✓ |
 | t2 | `bazi_pattern_analysis` | fortune | live | personal / agent | 1 call (~25s, may jitter 30–60s) | ✓ |
 | t3 | `bigluck_year_analysis` | fortune | live | personal / agent | none | ✓ |
 | t4 | `bigluck_year_fortune_eval` | fortune | live | personal / agent | 1 call (~30–90s, worst case ~90s) | ✓ |
@@ -217,7 +228,7 @@ The two transports wrap a **successful** result differently. This is the single 
 > **All credit values are fetched at runtime from the pricing database**. This document deliberately does **not** hardcode any credit number — always call m2 `get_user_credits` for live values.
 
 1. **Deduct-on-success**: credit is only deducted when the tool call succeeds. No refund needed on single-tool failure.
-2. **Free quota (t1 only)**: `bazi_basic_analysis` is the only tool with a free quota, per-user, one-time, non-resetting. The first call returns `creditsDeducted: 0, fromFreeQuota: true`.
+2. **Free quota (db-driven)**: whether a tool has a free quota — and its size / one-time-vs-recurring semantics — is configured in the pricing database and may change. Always read the live `free_remaining[]` from m2 `get_user_credits` to know the current state. A successful paid call may return `creditsDeducted: 0, fromFreeQuota: true` if a free quota covers it; otherwise `creditsDeducted` equals the live `credit_cost`.
 3. **Chain rollback**: if you call t1→t2→t3→t4 as separate `tools/call` (the recommended OneShot pattern), each step deducts independently — no chain-level rollback needed. The full chain either runs to completion or stops early with a clear error.
 4. **Live `credit_cost`**: numbers change. Always read `m2.get_user_credits.pricing[]` before any paid call.
 5. **No separate LLM charge**: `credit_cost` for t2 / t4 includes the LLM cost. There is no token line item.
@@ -227,7 +238,7 @@ The two transports wrap a **successful** result differently. This is the single 
 
 ```
 1. m2 get_user_credits           → confirm balance ≥ sum(fortune_pricing)
-2. t1 bazi_basic_analysis        → base_context  (0 credits if free quota available, else credit_cost)
+2. t1 bazi_basic_analysis        → base_context  (deducted per live `credit_cost`; covered by `free_remaining` if a free quota applies)
 3. t2 bazi_pattern_analysis      → pattern_result  (1 LLM call, ~25s)
 4. t3 bigluck_year_analysis      → year_analysis_result  (uses t1 + t2)
 5. t4 bigluck_year_fortune_eval  → final reading  (1 LLM call, ~30–90s)

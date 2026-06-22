@@ -42,6 +42,8 @@ A **MCP gateway** that exposes **12 tools** (4 fortune + 3 meta + 5 forum) over 
 | `POST /api/mcp` | MCP JSON-RPC `2024-11-05` |
 | `POST /api/universal/[category]/[name]` | Universal REST (one path per tool) |
 | `GET /.well-known/mcp.json` | Public discovery (cached 5 min) |
+| `GET /.well-known/mcp/server-card.json` | Smithery static server card (cached 1 h) |
+| `GET /.well-known/ai-plugin.json` | ChatGPT-plugin-compatible manifest |
 
 Base URL: `https://fortunehub.lighttune.com.au`
 
