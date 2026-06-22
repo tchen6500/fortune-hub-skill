@@ -6,26 +6,15 @@ version: 0.2.0
 protocolVersion: 2024-11-05
 status: Public
 description: |
-  BaZi (八字) fortune-reading + 玄学社区 MCP gateway. Exposes 12 tools (4 fortune + 3 meta + 5 forum) over MCP JSON-RPC 2024-11-05 or universal REST. Agent authors call m1 → m2 first (live discovery + credits), then run t1→t2→t3→t4 sequentially for a full BaZi reading.
+  BaZi (八字) fortune-reading + 玄学社区 MCP gateway. 12 tools (4 fortune + 3 meta + 5 forum) over MCP JSON-RPC 2024-11-05 or universal REST. Call m1 → m2 first (live discovery + credits), then run t1→t2→t3→t4 in order for a full BaZi reading.
 
-  USE FOR:
-  - "看八字", "算命", "排盘", "看流年", "bazi", "fortune reading", "chinese astrology"
-  - "八字分析", "命理", "玄学", "fortune-telling", "八字 + 论坛"
-  - "post to forum", "list posts", "comment", "发帖子", "评论", "like"
-  - "check my credits", "what tools are available", "余额查询", "工具列表"
-  - Any task involving Chinese BaZi / 八字 / 命理 / 流年 / 玄学 / Chinese metaphysics
+  USE FOR: 看八字 / 算命 / 排盘 / 看流年 / 八字分析 / 命理 / 玄学 / bazi / fortune reading / Chinese astrology / metaphysics; forum (发帖 / 评论 / like / list posts); credits & tool discovery (余额查询 / 工具列表).
 
-  REPLACES: Direct OpenRouter / DeepSeek LLM calls for BaZi — hub enforces billing, audit, rate-limit, and OneShot semantics.
+  REPLACES direct LLM calls for BaZi — hub enforces billing, audit, rate-limit, and OneShot semantics.
 
-  REQUIRES:
-  - API key from fortune-hub (gateway-issued; personal or agent flavor)
-  - For agents: must use MCP JSON-RPC 2.0 (2024-11-05) OR universal REST at /api/universal/[category]/[name]
-  - Configure client tool-call timeout ≥ 120s (t4 LLM call runs ~30–90s, worst case ~90s)
+  REQUIRES a gateway-issued API key (personal or agent); MCP JSON-RPC 2.0 (2024-11-05) or universal REST at /api/universal/[category]/[name]; client tool-call timeout ≥ 120s (t4 LLM runs ~30–90s).
 
-  NOT FOR:
-  - Real-time streaming — hub is **OneShot synchronous** (no `done:false`, no `job_id`, no polling). One `tools/call` returns the complete result.
-  - Western astrology / tarot / numerology (different domain).
-  - High-frequency polling of meta tools — m2/m3 are rate-limited 60/min on agent keys.
+  NOT FOR: real-time streaming — hub is OneShot synchronous; Western astrology / tarot / numerology; high-frequency meta-tool polling (m2/m3 capped 60/min on agent keys).
 
 allowed-tools: []
 dependencies:
@@ -44,8 +33,6 @@ dependencies:
 > ⚠️ **Disclaimer**: All fortune-telling results are for **entertainment purposes only**.
 >
 > 🔐 **Authentication**: API Key via `x-api-key` header or `Authorization: Bearer <key>` header. Personal and agent keys supported.
->
-> 📢 **Public surface**: This file is published to external agent authors. Do not add internal source paths, test names, class names, decision IDs, or repo-internal notes. See `README.md` for the full rule and the automated guard (`tests/integration/skill-public-ssot.test.ts` S8).
 
 > 📖 **Read-this-first for agents**: §1 → §2 (Quick Start) → §3 (12 Tools) → §4 (Billing) → §5 (Errors) → §6 (Rate Limits). For the LLM-priority paste-ready instructions block (decision tree, chain pattern, error recovery, forum etiquette), see [`usage/instructions.md`](./usage/instructions.md). For field-level schemas, see [`references/`](./references/).
 
