@@ -13,9 +13,13 @@
 1. **Success shapes differ by transport.** MCP returns your payload as a **JSON string**
    inside `result.content[0].text` — you must `JSON.parse` it. REST returns a real object
    under `data`. (Full detail: [`../SKILL.md`](../SKILL.md) §3 "Success response shape".)
-2. **Treat t1–t3 outputs as opaque.** You do **not** parse the internals of `base_context`
-   / `pattern_result` / `year_analysis_result` — you pass the **whole object** straight
-   into the next step. The truncated shapes below are illustrative; never hand-build them.
+2. **Don't interpret the chart internals, but do extract the right fields.** You never need
+   to understand what's *inside* `base_context` / `pattern_result` / etc. — but the chain is
+   **not** a blind whole-object pass-through: t2 returns `{ final_result, partial }`, and the
+   next step needs specific keys out of that (e.g. `final_result.pattern_result`,
+   `partial.base_context`). The exact paths are shown at each step below and summarized in
+   [`../usage/chain-patterns.md`](../usage/chain-patterns.md). Every payload has a **single**
+   `data` layer — read `data.base_context`, never `data.data.base_context`.
 
 The example person below: born **1985-07-15 14:30, male, Beijing**, asking about **2026**.
 
@@ -34,7 +38,7 @@ curl -X POST https://fortunehub.lighttune.com.au/api/universal/meta/get_skill_in
   "success": true,
   "data": {
     "skill": "fortune-hub",
-    "version": "0.2.2",
+    "version": "0.3.0",
     "fortune_pricing": [ { "tool_name": "bazi_basic_analysis", "credit_cost": 1 }, "..." ],
     "tools": [ "...12 entries..." ]
   },
@@ -100,42 +104,45 @@ Save `data.base_context`. Sub-second, pure algorithm.
 
 ## t2 — `bazi_pattern_analysis` (paid, ~25s LLM)
 
-Same birth arguments as t1.
+Takes t1's `base_context` (the object you saved from `t1 → data.base_context`) — **not** the
+raw birth fields.
 
 ```bash
 curl -X POST https://fortunehub.lighttune.com.au/api/universal/fortune/bazi_pattern_analysis \
   -H "x-api-key: $KEY" -H "content-type: application/json" -d '{
-    "birth_year": 1985, "birth_month": 7, "birth_day": 15,
-    "birth_hour": 14, "birth_minute": 30, "gender": "male",
-    "location": { "city_name": "Beijing" }
+    "base_context": { "...from t1 data.base_context..." }
   }'
 ```
 
 ```jsonc
 {
   "success": true,
-  "data": {
-    "pattern_result": {          // ← opaque; keep the whole object for t3 AND t4
-      "pattern_type": "...",
-      "useful_gods": [ "..." ],
-      "five_elements": { "...": "..." }
+  "data": {                      // ← t2 returns final_result + partial (single data layer)
+    "final_result": {
+      "pattern_result": {        // ← the authoritative pattern; feed this to t3 AND t4
+        "pattern_type": "...",
+        "useful_gods": [ "..." ]
+      }
+    },
+    "partial": {
+      "base_context": { "...": "..." }   // ← context carried forward
     }
   },
   "credits_deducted": 4
 }
 ```
 
-Save `data.pattern_result` — you reuse it in **both** t3 and t4.
+Save `data.final_result.pattern_result` (the pattern) — you reuse it in **both** t3 and t4.
 
 ## t3 — `bigluck_year_analysis` (paid, sub-second)
 
-Pass the t1 + t2 outputs through; add `target_year`.
+Pass `base_context` (from t1) + the `pattern_result` you saved from t2; add `target_year`.
 
 ```bash
 curl -X POST https://fortunehub.lighttune.com.au/api/universal/fortune/bigluck_year_analysis \
   -H "x-api-key: $KEY" -H "content-type: application/json" -d '{
     "base_context":   { "...from t1 data.base_context..." },
-    "pattern_result": { "...from t2 data.pattern_result..." },
+    "pattern_result": { "...from t2 data.final_result.pattern_result..." },
     "target_year":    2026
   }'
 ```
@@ -143,8 +150,11 @@ curl -X POST https://fortunehub.lighttune.com.au/api/universal/fortune/bigluck_y
 ```jsonc
 {
   "success": true,
-  "data": {
-    "year_analysis_result": { "...": "..." }   // ← opaque; keep for t4
+  "data": {                      // ← t3 also returns final_result + partial
+    "final_result": { "...year flow...": "..." },
+    "partial": {
+      "pattern_result": { "...": "..." }   // ← needed again for t4
+    }
   },
   "credits_deducted": 1
 }
@@ -152,16 +162,21 @@ curl -X POST https://fortunehub.lighttune.com.au/api/universal/fortune/bigluck_y
 
 ## t4 — `bigluck_year_fortune_eval` (paid, ~30–90s LLM — set timeout ≥120s)
 
-Takes t3's `year_analysis_result` + t2's `pattern_result` (**not** `base_context`).
+t4 is the one step that needs **reshaping** (passing t3's whole `data` verbatim returns
+`INVALID_INPUT`). Build `year_analysis_result` from t3's `final_result` **with t3's
+`partial` kept inline**, and take `pattern_result` from t3's `partial.pattern_result`:
 
 ```bash
 curl -X POST https://fortunehub.lighttune.com.au/api/universal/fortune/bigluck_year_fortune_eval \
   --max-time 130 \
   -H "x-api-key: $KEY" -H "content-type: application/json" -d '{
-    "year_analysis_result": { "...from t3 data.year_analysis_result..." },
-    "pattern_result":       { "...from t2 data.pattern_result..." }
+    "year_analysis_result": { "...t3 data.final_result fields...", "partial": { "...t3 data.partial..." } },
+    "pattern_result":       { "...from t3 data.partial.pattern_result..." }
   }'
 ```
+
+> In JS: `year_analysis_result = { ...t3.data.final_result, partial: t3.data.partial }`,
+> `pattern_result = t3.data.partial.pattern_result`.
 
 ```jsonc
 {
@@ -177,7 +192,7 @@ curl -X POST https://fortunehub.lighttune.com.au/api/universal/fortune/bigluck_y
 }
 ```
 
-This `final_result` is what you present to the user.
+This `data.final_result` is what you present to the user.
 
 ## Same run over MCP JSON-RPC
 
@@ -230,4 +245,6 @@ restart from t1. Full recovery rules: [`../usage/error-handling.md`](../usage/er
 ---
 
 *Numbers (pricing, balance, score) and the truncated payload fields above are illustrative.
-Read live pricing from m2 and treat all chain payloads as opaque pass-through objects.*
+Read live pricing from m2. You don't need to interpret the chart internals, but you do need
+to extract the documented fields at each step (see the paths above and
+[`../usage/chain-patterns.md`](../usage/chain-patterns.md)) — only t4 requires reshaping.*

@@ -12,6 +12,7 @@
 4. **No separate LLM charge**: `credit_cost` for t2 / t4 includes the LLM cost. There is no token line item.
 5. **Chain pattern (OneShot)**: t1→t2→t3→t4 are 4 separate `tools/call` (not a single batched call). Each step deducts independently on success.
 6. **New-account starter allowance**: the hub may grant new users an initial credit balance and/or free tool quota. The exact amounts are hub-configured and **subject to change** — do not hardcode or assume them, and do not assume a new user starts at zero. The only reliable source of truth is the live m2 `get_user_credits` response (`balance` for credits, `free_remaining[]` for per-tool free quota).
+7. **`min_balance` gate (db-driven)**: each `pricing[]` entry from m2 carries a `min_balance` alongside `credit_cost`. It is the minimum balance required to invoke that tool; if `balance < min_balance` the call is refused with `INSUFFICIENT_CREDITS` regardless of `credit_cost`. Gate paid calls on `balance ≥ min_balance`, not merely `balance ≥ credit_cost`. Like every pricing number it is live — read it from m2, never hardcode.
 
 ## Recommended agent pattern
 

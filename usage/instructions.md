@@ -1,7 +1,7 @@
 ---
 name: fortune-hub-usage
 audience: external-agent-internal-llm
-version: 0.2.2
+version: 0.3.0
 protocolVersion: 2024-11-05
 status: Public
 description: |
@@ -15,7 +15,7 @@ description: |
 
 > **Audience**: This file is the **paste-ready instructions block** for the LLM inside an external agent platform (Cursor / Cline / LangChain / Coze / custom agents). The protocol-level contract (12 tools, error codes, billing) lives in [`../SKILL.md`](../SKILL.md) — do not duplicate the field tables; cross-link instead.
 >
-> **Version**: 0.2.2 · **Protocol**: MCP `2024-11-05`
+> **Version**: 0.3.0 · **Protocol**: MCP `2024-11-05`
 
 ---
 

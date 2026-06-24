@@ -20,18 +20,18 @@
 
 ## What happens when blocked
 
-When a rate limit is hit, the response includes `data.limit_type` (e.g. `"meta_call"`, `"fortune_call"`, `"post"`, `"comment"`).
+When a rate limit is hit, the response includes `limit_type` (e.g. `"meta_call"`, `"fortune_call"`, `"post"`, `"comment"`) — in `error.data` on MCP, `error.details` on REST.
 
-- **MCP response** (top-level JSON-RPC `error`, `code: -32000`; `limit_type` / `retry_after` are flattened into `data`):
+- **MCP response** (top-level JSON-RPC `error`, `code: -32000`; `limit_type` is flattened into `data`):
   ```json
-  { "jsonrpc": "2.0", "id": 1, "error": { "code": -32000, "message": "RATE_LIMITED", "data": { "detail": "...", "limit_type": "fortune_call", "retry_after": 42 } } }
+  { "jsonrpc": "2.0", "id": 1, "error": { "code": -32000, "message": "RATE_LIMITED", "data": { "detail": "...", "limit_type": "fortune_call" } } }
   ```
 - **Universal REST response**:
   ```json
-  { "success": false, "error": { "code": "RATE_LIMITED", "details": { "limit_type": "fortune_call", "retry_after": 42 } } }
+  { "success": false, "error": { "code": "RATE_LIMITED", "details": { "limit_type": "fortune_call" } } }
   ```
 
-The `retry_after` field gives the number of seconds until the limit resets (typically the remaining time in the current minute).
+Back off and retry after the current minute boundary (`RATE_LIMITED` is retryable at most once), or switch to a personal key where the limit allows.
 
 ## Strategies to avoid hitting limits
 

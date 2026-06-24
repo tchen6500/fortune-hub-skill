@@ -41,11 +41,12 @@ server-side; the limit you feel is your client.
 
 ### Rule 1 — Sequential, never parallel
 
-t2's `base_context` is t1's `data`. t3 needs `base_context` (t1) + `pattern_result` (t2)
-+ `target_year`. t4 needs `year_analysis_result` (t3) + `pattern_result` (t2). **You
-cannot parallelize the chain.** Calling t3 before t2 finishes fails with
-`INVALID_INPUT`; the `details.issues[]` array (each entry `{ path, message }`) names the
-missing field — here `pattern_result`.
+t2 takes t1's `base_context` (**not** the raw birth fields). t3 needs `base_context` +
+`pattern_result` (both derived from t2's output) + `target_year`. t4 needs
+`year_analysis_result` (t3's whole result) + `pattern_result`. **You cannot parallelize
+the chain.** Calling t3 before t2 finishes fails with `INVALID_INPUT`; the
+`details.issues[]` array (each entry `{ path, message }`) names the missing field — here
+`pattern_result`.
 
 ### Rule 2 — Pass outputs through; don't regenerate them
 
@@ -72,44 +73,47 @@ The same applies to t4.
 
 ## Pseudocode (agent-agnostic, pseudo-Python)
 
+> `r.data` below is the tool payload (REST: the object under `data`; MCP:
+> `JSON.parse(result.content[0].text)`). The payload has a **single** `data` layer — read
+> `r.data.base_context`, not `r.data.data.base_context`.
+
 ```python
 state = {}
 
-# Step 1 — pure algorithm, sub-second
+# Step 1 — pure algorithm, sub-second. Takes the raw birth fields.
 r1 = call("bazi_basic_analysis", {
     "birth_year": 1985, "birth_month": 7, "birth_day": 15,
     "birth_hour": 14, "birth_minute": 30, "gender": "male",
     "location": {"city_name": "Beijing"},
 })
-state.base_context = r1.data
+state.base_context = r1.data["base_context"]
 
-# Step 2 — LLM ~25s, OneShot
+# Step 2 — LLM ~25s, OneShot. Takes t1's base_context (NOT the birth fields).
 r2 = call("bazi_pattern_analysis", {
-    "birth_year": 1985, "birth_month": 7, "birth_day": 15,
-    "birth_hour": 14, "birth_minute": 30, "gender": "male",
-    "location": {"city_name": "Beijing"},
+    "base_context": state.base_context,
 })
-state.pattern_result = r2.data
+# t2 returns { final_result, partial }
+state.pattern_result = r2.data["final_result"]["pattern_result"]
+state.base_context   = r2.data["partial"]["base_context"]   # context carried forward
 
-# Step 3 — pure algorithm; pass t1 + t2 through
+# Step 3 — pure algorithm; pass t1 + t2 through. Returns { final_result, partial }.
 r3 = call("bigluck_year_analysis", {
     "base_context":   state.base_context,
     "pattern_result": state.pattern_result,
     "target_year":    user_target_year,
 })
-state.year_analysis_result = r3.data
 
-# Step 4 — LLM ~30-90s; takes t3 + t2 (NOT base_context)
+# Step 4 — LLM ~30-90s; takes t3's whole result + pattern_result (NOT base_context).
+# year_analysis_result must keep t3's `partial` inline alongside final_result's fields.
 r4 = call("bigluck_year_fortune_eval", {
-    "year_analysis_result": state.year_analysis_result,
-    "pattern_result":       state.pattern_result,
+    "year_analysis_result": { **r3.data["final_result"], "partial": r3.data["partial"] },
+    "pattern_result":       r3.data["partial"]["pattern_result"],
 })
-state.final = r4.data
+state.final = r4.data["final_result"]
 ```
 
-> Note on t1 vs t2 inputs: in the current contract both t1 and t2 take the raw birth
-> fields. If a future upstream revision changes t2 to take `base_context` directly,
-> `../SKILL.md §3` is authoritative — follow it.
+> Note on t1 vs t2 inputs: **t1 takes the raw birth fields; t2 takes t1's `base_context`.**
+> `../references/12-tools.md` is authoritative for field-level schemas — follow it.
 
 ## Reuse across turns — don't re-call t1/t2
 

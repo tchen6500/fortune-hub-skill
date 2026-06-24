@@ -93,7 +93,7 @@ Coze plugin manifest (`plugin.yaml` or the equivalent UI export):
 
 ```yaml
 name: fortune-hub
-version: 0.2.2
+version: 0.3.0
 auth:
   type: service
   service:
