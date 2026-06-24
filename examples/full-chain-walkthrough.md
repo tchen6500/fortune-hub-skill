@@ -34,7 +34,7 @@ curl -X POST https://fortunehub.lighttune.com.au/api/universal/meta/get_skill_in
   "success": true,
   "data": {
     "skill": "fortune-hub",
-    "version": "0.2.0",
+    "version": "0.2.2",
     "fortune_pricing": [ { "tool_name": "bazi_basic_analysis", "credit_cost": 1 }, "..." ],
     "tools": [ "...12 entries..." ]
   },
@@ -206,10 +206,14 @@ curl -X POST https://fortunehub.lighttune.com.au/api/mcp \
   "result": {
     "content": [
       { "type": "text", "text": "{\"base_context\":{ ... }}" }  // ← JSON.parse this
-    ]
+    ],
+    "_meta": { "credits_deducted": 1 }   // ← what this paid call cost (t1–t4 only)
   }
 }
 ```
+
+> The REST envelope's `credits_deducted` lives in `result._meta.credits_deducted` on MCP.
+> It is present only on paid tool calls (t1–t4); free meta/forum calls omit `_meta`.
 
 ## Follow-up turns — don't re-run t1/t2
 

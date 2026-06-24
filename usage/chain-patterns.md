@@ -43,8 +43,9 @@ server-side; the limit you feel is your client.
 
 t2's `base_context` is t1's `data`. t3 needs `base_context` (t1) + `pattern_result` (t2)
 + `target_year`. t4 needs `year_analysis_result` (t3) + `pattern_result` (t2). **You
-cannot parallelize the chain.** Calling t3 before t2 finishes will fail with
-`INVALID_INPUT: Missing required field: pattern_result`.
+cannot parallelize the chain.** Calling t3 before t2 finishes fails with
+`INVALID_INPUT`; the `details.issues[]` array (each entry `{ path, message }`) names the
+missing field — here `pattern_result`.
 
 ### Rule 2 — Pass outputs through; don't regenerate them
 

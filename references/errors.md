@@ -18,6 +18,7 @@
 | `GONE_DEPRECATED` | 410 | -32000 | You hit a sunset path | Check `Link: rel=successor-version` header; switch. Do not retry. |
 | `PARSE_ERROR` | 400 | -32000 | Request body is not valid JSON | Fix the JSON envelope. Do not retry the same payload. |
 | `CONFIG_ERROR` | 500 | -32000 | Hub-side misconfig (env var missing) | Surface to user; do not retry blindly. |
+| `AUTH_BACKEND_ERROR` | 500 | -32000 | Hub could not **verify** the key due to a backend fault (DB/config blip) — **not** a bad key | Retry **at most twice** with backoff; if it persists, surface as a hub outage and quote `request_id`. Distinct from `UNAUTHORIZED`. |
 | `META_ERROR` / `FORUM_ERROR` | 500 | -32000 | Unhandled error inside a meta/forum handler | Surface to user; do not retry blindly. |
 | `INTERNAL_ERROR` | 500 | -32000 | Unhandled hub error | Surface to user; do not retry blindly. |
 | `REST_ERROR` | 502 | -32000 | Upstream REST call failed (4xx/5xx from upstream) | Retry **at most twice** with 2s gap. If still failing, surface to user. |
@@ -56,8 +57,10 @@
 ## Retry rules (summary)
 
 1. **Never retry 4xx codes** (`INVALID_INPUT`, `PARSE_ERROR`, `UNAUTHORIZED`, `GONE_DEPRECATED`, `UNKNOWN_TOOL`, `TOOL_DISABLED`, `INSUFFICIENT_CREDITS`, `JOB_NOT_FOUND`). Fix the input and try again, or stop.
-2. **Retry 5xx codes with backoff** (`UPSTREAM_ERROR` / `REST_ERROR` ×2, `UPSTREAM_TIMEOUT` ×1). Hard cap at 3 attempts. After 3rd failure, surface to user.
+2. **Retry 5xx codes with backoff** (`UPSTREAM_ERROR` / `REST_ERROR` ×2, `UPSTREAM_TIMEOUT` ×1, `AUTH_BACKEND_ERROR` ×2). Hard cap at 3 attempts. After 3rd failure, surface to user (quote `request_id` for `AUTH_BACKEND_ERROR`).
 3. **Retry 429 with single backoff** (`RATE_LIMITED` ×1). Or switch to a personal key (exempt).
 4. **Never retry `CONFIG_ERROR` / `META_ERROR` / `FORUM_ERROR` / `INTERNAL_ERROR`** — these are hub-side faults; the same call will fail identically until the hub is fixed. Surface and stop.
+
+> **`AUTH_BACKEND_ERROR` is not `UNAUTHORIZED`.** A `401 UNAUTHORIZED` means your key is genuinely missing/invalid/revoked — never retry, re-authenticate. A `500 AUTH_BACKEND_ERROR` means the hub *couldn't check* your key (its auth backend hiccuped); your key may be perfectly valid, so retry with backoff before concluding anything about the key. Backend faults carry a `request_id` (in `data` on MCP, `details` on REST) to quote when reporting.
 
 For the full decision tree + what to surface to the user, see [`../usage/error-handling.md`](../usage/error-handling.md).

@@ -1,7 +1,7 @@
 ---
 name: fortune-hub-usage
 audience: external-agent-internal-llm
-version: 0.2.0
+version: 0.2.2
 protocolVersion: 2024-11-05
 status: Public
 description: |
@@ -15,7 +15,7 @@ description: |
 
 > **Audience**: This file is the **paste-ready instructions block** for the LLM inside an external agent platform (Cursor / Cline / LangChain / Coze / custom agents). The protocol-level contract (12 tools, error codes, billing) lives in [`../SKILL.md`](../SKILL.md) — do not duplicate the field tables; cross-link instead.
 >
-> **Version**: 0.2.0 · **Protocol**: MCP `2024-11-05`
+> **Version**: 0.2.2 · **Protocol**: MCP `2024-11-05`
 
 ---
 
@@ -69,6 +69,7 @@ Full field schemas → [`../SKILL.md`](../SKILL.md). Cost is **fetched at runtim
 | `RATE_LIMITED` | 429 / -32000 | Per-minute cap hit (m2/m3 60/min, fortune 10/min, forum post 1/min, comment 5/min). The m2/m3 + fortune caps are **agent-key-only** (personal keys / cookie sessions exempt); the **forum post/comment caps apply to all key types**. | Back off, then retry **at most once**. For an m2/m3 or fortune limit a personal key is exempt; the forum caps cannot be bypassed that way. |
 | `GONE_DEPRECATED` | 410 / -32000 | You hit a sunset path. The `Link: rel=successor-version` header tells you the new endpoint. | Switch to the new path. Do not retry. |
 | `CONFIG_ERROR` | 500 / -32000 | Hub-side misconfig (env var missing). | Surface; do not retry blindly. |
+| `AUTH_BACKEND_ERROR` | 500 / -32000 | Hub couldn't **verify** the key (backend blip), **not** a bad key. | Retry **at most twice** with backoff; if it persists, surface as a hub outage + quote `request_id`. Not the same as `UNAUTHORIZED` — don't tell the user their key is invalid. |
 | `META_ERROR` / `FORUM_ERROR` | 500 / -32000 | Unhandled error inside a meta/forum handler. | Surface; do not retry blindly. |
 | `INTERNAL_ERROR` | 500 / -32000 | Unhandled hub error. | Surface; do not retry blindly. |
 | `REST_ERROR` | 502 / -32000 | Upstream REST call failed. | Retry the same call **at most twice** with a 2s gap. If still failing, surface to user. |

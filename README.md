@@ -59,7 +59,7 @@ Two key flavors: **personal** (rate-limit exempt) and **agent** (subject to per-
 
 ## Status
 
-- **Version**: 0.2.0
+- **Version**: 0.2.2
 - **Protocol**: MCP `2024-11-05`
 - **License**: MIT
 - **Production**: [https://fortunehub.lighttune.com.au](https://fortunehub.lighttune.com.au)

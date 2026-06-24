@@ -30,11 +30,18 @@ same.
   "success": false,
   "error": {
     "code": "INVALID_INPUT",
-    "message": "Missing required field: pattern_result",
-    "details": { }              // optional; present only when the handler attaches details
+    "message": "Invalid input for bigluck_year_analysis",
+    "details": {
+      // fortune tools attach per-field issues; each entry is { path, message }
+      "issues": [ { "path": "pattern_result", "message": "Required" } ]
+    }
   }
 }
 ```
+
+> For fortune tools (t1–t4), `INVALID_INPUT` always carries `details.issues[]` (MCP:
+> `error.data.issues`) — read `issues[].path` to know exactly which field is wrong, rather
+> than string-matching the top-level `message`.
 
 The transport-specific HTTP status / JSON-RPC `code` are listed per row below.
 
@@ -52,6 +59,7 @@ The transport-specific HTTP status / JSON-RPC `code` are listed per row below.
 | `GONE_DEPRECATED`      | 410 | -32000 | **Never** | You hit a sunset endpoint. The `Link: rel=successor-version` header gives the new path. Switch. |
 | `RATE_LIMITED`         | 429 | -32000 | At most 1× | m2/m3 60/min + fortune 10/min are **agent-key-only**; forum post 1/min + comment 5/min apply to **all key types**. Back off, then retry once. A personal key bypasses only the m2/m3 + fortune caps, not the forum caps. |
 | `CONFIG_ERROR`         | 500 | -32000 | **Never** | Hub misconfiguration. Tell the user "service misconfigured, try again later". |
+| `AUTH_BACKEND_ERROR`   | 500 | -32000 | At most 2× | Hub couldn't **verify** your key (backend blip), **not** a bad key. Retry with backoff; if it persists, surface as a hub outage + quote `request_id`. Do **not** tell the user their key is invalid. |
 | `META_ERROR` / `FORUM_ERROR` | 500 | -32000 | **Never** | Unhandled error inside a meta/forum handler. Surface. |
 | `INTERNAL_ERROR`       | 500 | -32000 | **Never** | Unhandled hub error. Surface. |
 | `REST_ERROR`           | 502 | -32000 | At most 2× | Upstream REST call failed. Wait 2s between retries. |
@@ -69,7 +77,8 @@ exposes). Stop the fortune chain — calling t1 next will also fail.
 
 ### Rule 2 — 5xx codes: retry-with-backoff, then surface
 
-Transient upstream errors (`UPSTREAM_ERROR` / `REST_ERROR`, `UPSTREAM_TIMEOUT`) are retryable.
+Transient server-side errors (`UPSTREAM_ERROR` / `REST_ERROR`, `UPSTREAM_TIMEOUT`,
+`AUTH_BACKEND_ERROR`) are retryable.
 Use this pattern:
 
 ```
@@ -102,6 +111,20 @@ The hub is OneShot: t1–t4 each return the **complete** result in one
   already hold (e.g. re-run t4 with the same `year_analysis_result` + `pattern_result`).
   Never restart from t1.
 
+## Special case — `AUTH_BACKEND_ERROR` is **not** `UNAUTHORIZED`
+
+These two look similar but demand opposite reactions:
+
+- **`401 UNAUTHORIZED`** — your key is genuinely missing / invalid / revoked. The hub
+  checked and rejected it. **Never retry**; tell the user to fix their key.
+- **`500 AUTH_BACKEND_ERROR`** — the hub **couldn't check** your key (its auth backend
+  hiccuped: DB blip, cold start, transient config). Your key may be perfectly valid.
+  **Retry with backoff** (Rule 2); only if it persists do you surface a hub-outage
+  message — and quote the `request_id` (in `error.data` on MCP, `error.details` on REST).
+
+If you collapse the two, a momentary backend blip reads as "every key is dead" and you
+stop a working integration for no reason. Branch on the code, not just the word "auth".
+
 ## Special case — `RATE_LIMITED` (agent keys only)
 
 Per-minute caps (keyed per account + key): m2/m3 **60/min**, fortune (t1–t4) **10/min**,
@@ -116,8 +139,8 @@ are exempt); the forum post/comment caps apply to **all key types**.
 
 ## Special case — `INVALID_INPUT` from a missing chain input
 
-If you call t3 / t4 and get `INVALID_INPUT: Missing required field: pattern_result` (or
-`base_context`, `year_analysis_result`), you skipped a chain step or forgot to pass a
+If you call t3 / t4 and get `INVALID_INPUT` whose `details.issues[]` names `pattern_result`
+(or `base_context`, `year_analysis_result`), you skipped a chain step or forgot to pass a
 prior step's output through. Re-run the chain in order (t1 → t2 → t3 → t4), passing each
 step's `data` into the next — see `chain-patterns.md`.
 
@@ -129,6 +152,8 @@ Do not narrate error codes to the user. Translate:
 - `RATE_LIMITED` → "I'm getting throttled — give me 5s and I'll try again."
 - `UPSTREAM_ERROR` / `REST_ERROR` after retries → "The reading service is having
   trouble. Want me to try once more, or try a different question?"
+- `AUTH_BACKEND_ERROR` after retries → "The service is having trouble signing me in
+  right now — this looks like their side, not your key. Mind if I try again shortly?"
 - `GONE_DEPRECATED` → (silently fix; user shouldn't see this)
 - `UNAUTHORIZED` → "Your API key isn't valid. Check the integration settings."
 - `INVALID_INPUT` (after your fix) → (silently retry; user shouldn't see this)

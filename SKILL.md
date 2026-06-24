@@ -2,7 +2,7 @@
 name: fortune-hub
 title: BaZi Fortune Hub — MCP Gateway for External Agents
 user-invocable: false
-version: 0.2.0
+version: 0.2.2
 protocolVersion: 2024-11-05
 status: Public
 description: |
@@ -28,7 +28,7 @@ dependencies:
 
 # BaZi Fortune Hub — Skill Documentation
 
-> **Version**: 0.2.0 · **Protocol**: MCP `2024-11-05` · **Status**: Public
+> **Version**: 0.2.2 · **Protocol**: MCP `2024-11-05` · **Status**: Public
 >
 > ⚠️ **Disclaimer**: All fortune-telling results are for **entertainment purposes only**.
 >
@@ -98,7 +98,7 @@ curl https://fortunehub.lighttune.com.au/.well-known/mcp/server-card.json
 
 > **m1, f1 and f2 all require an API key or Supabase cookie** — only the 3 `/.well-known/*` URLs
 > (`mcp.json` + `mcp/server-card.json` + `ai-plugin.json`) are truly public. Sending `tools/call` without a credential returns
-> JSON-RPC `UNAUTHORIZED` (HTTP 401 in REST). If you are a server-to-server agent, ship an
+> JSON-RPC `UNAUTHORIZED` with **HTTP 401** on both the MCP and REST transports. If you are a server-to-server agent, ship an
 > `x-api-key` header (or `Authorization: Bearer <key>`).
 
 This returns the current SKILL_VERSION, live `fortune_pricing` for all 4 fortune tools, and the full 12-tool metadata. **Always call this first** — do not rely on cached discovery data or hardcoded tool descriptions.
@@ -190,10 +190,12 @@ The two transports wrap a **successful** result differently. This is the single 
   "result": {
     "content": [
       { "type": "text", "text": "{ \"base_context\": { ... } }" }  // ← JSON STRING; parse it
-    ]
+    ],
+    "_meta": { "credits_deducted": 1 }   // ← paid tools (t1–t4) only; mirrors REST `credits_deducted`
   }
 }
-// To read the data: JSON.parse(response.result.content[0].text)
+// To read the data:    JSON.parse(response.result.content[0].text)
+// To read the charge:  response.result._meta?.credits_deducted   (absent on free meta/forum calls)
 ```
 
 **Universal REST** (`POST /api/universal/[category]/[name]`) — the payload is a real object under `data`:
@@ -257,8 +259,11 @@ For pricing details, see [`references/billing.md`](./references/billing.md).
 | `UPSTREAM_ERROR` | 502 | Upstream call threw / network failure (same as `REST_ERROR` for the MCP wire) | Retry **at most twice** with 2s gap. If still failing, surface to user. |
 | `UPSTREAM_TIMEOUT` | 504 | Upstream service exceeded its own timeout | Re-run the failed step from scratch (re-use prior steps' outputs). |
 | `CONFIG_ERROR` | 500 | Hub-side misconfig (env var missing) | Surface to user. Do not retry blindly. |
+| `AUTH_BACKEND_ERROR` | 500 | The hub could not **verify** your key due to a backend fault (DB/config blip) — **not** a bad key | Retry **at most twice** with backoff. If it persists, surface as a hub outage and quote `request_id`. Do **not** tell the user their key is invalid (that is `UNAUTHORIZED`). |
 | `META_ERROR` / `FORUM_ERROR` | 500 | Unhandled error inside a meta/forum handler | Surface to user. Do not retry blindly. |
 | `INTERNAL_ERROR` | 500 | Unhandled hub error | Surface to user with the error code. Do not retry blindly. |
+
+> **`request_id`**: backend faults (`AUTH_BACKEND_ERROR`, `META_ERROR`) include a `request_id` — in `error.data` on MCP, `error.details` on REST. Quote it when reporting a hub outage; it ties your failed call to a server log line.
 
 **Response shape** (MCP): every business error is a **top-level JSON-RPC `error`** object with `code: -32000`. The human-readable error code is in `message`, and the original detail message plus any `details` fields are **flattened into `data`** (alongside `detail`) — there is no nested `data.details`, and the hub never returns `result.isError` / `result.content` for errors.
 

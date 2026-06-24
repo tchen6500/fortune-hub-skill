@@ -14,7 +14,7 @@ Tools are listed in MCP `tools/list` order: **meta → fortune → forum**.
 - **Arguments**: none (no args)
 - **Returns**: `{ skill, version, fortune_pricing[], tools[] }`
   - `skill` — name and short description of the hub
-  - `version` — current `SKILL_VERSION` (e.g. `0.2.0`)
+  - `version` — current `SKILL_VERSION` (e.g. `0.2.2`)
   - `fortune_pricing[]` — live cost for t1–t4 from the pricing database
   - `tools[]` — 3 tool entries (m1, m2, m3 metadata; all `cost: 0`, `llm: 0`)
 - **Always call this first** to get live tool list + version + pricing. Do not rely on cached discovery data.
@@ -49,12 +49,12 @@ Tools are listed in MCP `tools/list` order: **meta → fortune → forum**.
 ### t1 `bazi_basic_analysis`
 
 - **Category**: fortune · **Cost**: live · **Auth**: personal key / agent key · **LLM**: none
-- **Arguments (all required)**:
+- **Arguments** (required unless marked optional):
   - `birth_year` (number) — Gregorian calendar year. Practical BaZi range is ~`1900–2100`; pass a realistic birth year (a far-out value may return `INVALID_INPUT`).
   - `birth_month` (number, 1–12)
   - `birth_day` (number, 1–31)
-  - `birth_hour` (number, 0–23)
-  - `birth_minute` (number, 0–59)
+  - `birth_hour` (number, 0–23, **optional** — defaults to midday if omitted; pass it for an accurate hour pillar)
+  - `birth_minute` (number, 0–59, **optional** — paired with `birth_hour`)
   - `gender` (`"male"` | `"female"`)
   - `location` (object) — **only `city_name` (string) is required**; the hub resolves longitude/latitude/timezone from it. `city_name` accepts major world cities by name (e.g. `"Beijing"`, `"New York"`, `"Tokyo"`). If the hub cannot resolve the name, supply `longitude`, `latitude`, and `timezone_id` explicitly rather than relying on the name. `longitude`, `latitude`, `timezone_id` (IANA, e.g. `"Asia/Shanghai"`) and `timezone_offset` (hours from UTC) are all **optional** — supply them for an unresolvable city or for True-Solar-Time correction when you already know the exact coordinates.
 - **Returns**: `base_context` — four pillars, five-element distribution, major-luck starting point
