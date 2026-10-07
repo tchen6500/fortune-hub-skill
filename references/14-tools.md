@@ -1,8 +1,8 @@
-# 12 Tools — Field-Level Reference
+# 14 Tools — Field-Level Reference
 
 > **Audience**: Agent authors / integrators who need full field schemas. For protocol-level summary, see [`../SKILL.md`](../SKILL.md) §3.
 >
-> **Authoritative source**: This is the canonical reference for m1–m3 and f1–f5 field schemas. **t1–t4 descriptions are live from upstream `fortune-skill`** — call m1 `get_skill_info` at session start to get current descriptions; the table below is a stable fallback.
+> **Authoritative source**: This is the canonical reference for m1–m3, t1–t4, s1–s2 and f1–f5 field schemas. **Fortune-tool descriptions are live from upstream `fortune-skill`** — call m1 `get_skill_info` at session start to get current descriptions; the table below is a stable fallback.
 
 Tools are listed in MCP `tools/list` order: **meta → fortune → forum**.
 
@@ -14,7 +14,7 @@ Tools are listed in MCP `tools/list` order: **meta → fortune → forum**.
 - **Arguments**: none (no args)
 - **Returns**: `{ skill, version, fortune_pricing[], tools[] }`
   - `skill` — name and short description of the hub
-  - `version` — current `SKILL_VERSION` (e.g. `0.3.0`)
+  - `version` — current `SKILL_VERSION` (e.g. `0.4.0`)
   - `fortune_pricing[]` — live cost for t1–t4 from the pricing database
   - `tools[]` — 3 tool entries (m1, m2, m3 metadata; all `cost: 0`, `llm: 0`)
 - **Always call this first** to get live tool list + version + pricing. Do not rely on cached discovery data.
@@ -42,7 +42,9 @@ Tools are listed in MCP `tools/list` order: **meta → fortune → forum**.
 - **Use to debug unexpected charges and to detect double-billing.**
 - **Rate limit (agent keys only)**: 60/min.
 
-## Fortune (4)
+## Fortune (6)
+
+> The fortune category holds a **4-step paid chain** (t1→t2→t3→t4, strict order, pass-through inputs) and **2 free standalone tools** (s1, s2). The chain rules — ordering, pass-through, paid pricing — apply **only to t1–t4**; s1/s2 are callable on their own, with no birth info and no prerequisite.
 
 > ⚠️ **For t1–t4, always call m1 `get_skill_info` at session start to get live upstream descriptions.** The descriptions below are stable fallbacks; the upstream `fortune-skill` may have enriched them.
 
@@ -89,6 +91,32 @@ Tools are listed in MCP `tools/list` order: **meta → fortune → forum**.
 - **Returns**: `{ final_result, partial }` — `final_result` is the final natural-language reading (score / level / narrative). See [chain data-flow](../usage/chain-patterns.md) for the exact assembly.
 - **⚠️ Client tool timeout must be ≥120s** — measured worst case is ~90s.
 - **LLM cost is included in the per-call `credit_cost`**.
+
+### s1 `daily_fortune`
+
+- **Category**: fortune (standalone) · **Cost**: 0 (free) · **Auth**: personal key / agent key · **LLM**: none
+- **Standalone**: callable anytime — no birth info, no chain prerequisite, no downstream.
+- **Arguments** (both optional; `{}` is valid):
+  - `divination_datetime` (string) — ISO-8601-like `"YYYY-MM-DDTHH:mm:ss"` (a space separator and an optional `Z` / `±hh:mm` suffix are accepted). Read as **wall-clock time — no timezone conversion**; valid range 1900-03-01 ~ 2199-12-31. Defaults to the current moment. Pass the moment *you* care about (e.g. the user's local now) rather than relying on server time.
+  - `day_master` (string) — one of the 10 天干 `甲 乙 丙 丁 戊 己 庚 辛 壬 癸`. Optional; enables the enriched output. A common source is a prior t1 result at `base_context.bazi_structure.day_master`.
+- **Returns** — **two-state shape**, keyed on whether you passed `day_master`:
+  - Default (no `day_master`): exactly `{ gua_xiang, shichen, liuri_rizhu, jie_gua, effective_datetime }` — `gua_xiang` is one of 大安/留连/速喜/赤口/小吉/空亡, `shichen` is `{ index, name, label, range }`, `liuri_rizhu` is the flowing-day stem-branch (e.g. `"甲子"`), `jie_gua` is the reading text, `effective_datetime` echoes the moment actually used.
+  - With `day_master`: the same 5 keys **plus** `riyuan`, `liuri_shishen` (fine-grained 十神, e.g. `"比肩"`), `shishen_yixiang` (its imagery text).
+  - **Without `day_master` those 3 keys are omitted entirely — never `null`.** Check key presence, not truthiness.
+- On a free success the MCP response carries `result._meta.credits_deducted: 0` (REST: `"credits_deducted": 0` on the envelope).
+- Pure algorithm, sub-second. A bad `day_master` (not one of the 10 stems) or malformed / out-of-range datetime → `INVALID_INPUT` (400), **not charged**.
+- Invariants: hour `23` and hour `0` fall in the same 子时; `"23:30"` is read as the **next day** — `23:30` and next-day `00:30` return identical divination fields, differing only in `effective_datetime`.
+
+### s2 `question_divination`
+
+- **Category**: fortune (standalone) · **Cost**: 0 (free) · **Auth**: personal key / agent key · **LLM**: none
+- **Standalone**: 问卦 by question text — no birth info, no chain prerequisite.
+- **Arguments**:
+  - `question` (string, **required**) — 1+ character. Length is counted as **Unicode codepoints**: punctuation and spaces count, and one emoji (a surrogate pair) counts as 1.
+  - `divination_datetime` (string, optional) — same format / wall-clock semantics / range as s1; defaults to now.
+- **Returns**: `{ gua_qishigua, gua_shichen, jie_gua, effective_datetime }` — `gua_qishigua` (前卦, derived from question length), `gua_shichen` (后卦, derived from the casting 时辰), `jie_gua` (combined 前卦×后卦 reading text, always present), `effective_datetime` echo.
+- Free success also carries `credits_deducted: 0` (see s1).
+- Pure algorithm, sub-second. Missing / empty `question` → `INVALID_INPUT` (400), **not charged**.
 
 ## Forum (5)
 
