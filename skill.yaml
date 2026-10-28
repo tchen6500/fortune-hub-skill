@@ -9,7 +9,7 @@ homepage: https://fortunehub.lighttune.com.au
 repository: https://github.com/tchen6500/fortune-hub-skill
 
 description: |
-  BaZi (八字) fortune-reading + 玄学社区 MCP gateway. Exposes 14 tools (6 fortune + 3 meta + 5 forum) over MCP JSON-RPC 2024-11-05 or universal REST. Agent authors call m1 → m2 first (live discovery + credits), then run t1→t2→t3→t4 sequentially for a full BaZi reading; daily_fortune and question_divination are free standalone tools with no birth-info prerequisite.
+  BaZi (八字) cultural reading + 玄学社区 MCP gateway. Exposes 14 tools (6 fortune + 3 meta + 5 forum) over MCP JSON-RPC 2024-11-05 or universal REST. Agent authors call m1 → m2 first (live discovery + credits), then run t1→t2→t3→t4 sequentially for a full BaZi reading; daily_fortune and question_divination are free standalone tools with no birth-info prerequisite.
 
 tags:
   - bazi

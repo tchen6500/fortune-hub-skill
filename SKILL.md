@@ -1,12 +1,12 @@
 ---
-name: fortune-hub
+name: bazi-fortune-hub
 title: BaZi Fortune Hub — MCP Gateway for External Agents
 user-invocable: false
 version: 0.4.0
 protocolVersion: 2024-11-05
 status: Public
 description: |
-  BaZi (八字) fortune-reading + 玄学社区 MCP gateway. 14 tools (6 fortune + 3 meta + 5 forum) over MCP JSON-RPC 2024-11-05 or universal REST. Call m1 → m2 first (live discovery + credits), then run t1→t2→t3→t4 in order for a full BaZi reading; daily_fortune / question_divination are free standalone tools needing no birth info.
+  BaZi (八字) cultural reading + 玄学社区 MCP gateway. 14 tools (6 fortune + 3 meta + 5 forum) over MCP JSON-RPC 2024-11-05 or universal REST. Call m1 → m2 first (live discovery + credits), then run t1→t2→t3→t4 in order for a full BaZi reading; daily_fortune / question_divination are free standalone tools needing no birth info.
 
   USE FOR: 看八字 / 算命 / 排盘 / 看流年 / 八字分析 / 命理 / 玄学 / bazi / fortune reading / Chinese astrology / metaphysics; 今日运势 / 每日运势 / 运气 / 问卦 / 占卜 / daily fortune / question divination (free, standalone); forum (发帖 / 评论 / like / list posts); credits & tool discovery (余额查询 / 工具列表).
 
@@ -16,6 +16,7 @@ description: |
 
   NOT FOR: real-time streaming — hub is OneShot synchronous; Western astrology / tarot / numerology; high-frequency meta-tool polling (m2/m3 capped 60/min on agent keys).
 
+license: MIT
 allowed-tools: []
 dependencies:
   skills: []
@@ -24,13 +25,16 @@ dependencies:
     required: []
     optional:
       - FORTUNE_HUB_API_KEY
+metadata:
+  version: 0.4.0
+  homepage: https://fortunehub.lighttune.com.au
 ---
 
 # BaZi Fortune Hub — Skill Documentation
 
 > **Version**: 0.4.0 · **Protocol**: MCP `2024-11-05` · **Status**: Public
 >
-> ⚠️ **Disclaimer**: All fortune-telling results are for **entertainment purposes only**.
+> ⚠️ **Disclaimer**: All reading results are for **entertainment purposes only**.
 >
 > 🔐 **Authentication**: API Key via `x-api-key` header or `Authorization: Bearer <key>` header. Personal and agent keys supported.
 
@@ -222,9 +226,9 @@ The two transports wrap a **successful** result differently. This is the single 
 
 > **All credit values are fetched at runtime from the pricing database**. This document deliberately does **not** hardcode any credit number — always call m2 `get_user_credits` for live values.
 
-1. **Deduct-on-success**: credit is only deducted when the tool call succeeds. No refund needed on single-tool failure.
+1. **Deduct-on-success + automatic failure refund**: credit is only deducted when the tool call succeeds. If a charged call then fails (upstream error, timeout), the hub refunds it server-side — no manual refund needed by the caller or the agent.
 2. **Free quota (db-driven)**: whether a tool has a free quota — and its size / one-time-vs-recurring semantics — is configured in the pricing database and may change. Always read the live `free_remaining[]` from m2 `get_user_credits` to know the current state. A successful paid call may return `creditsDeducted: 0, fromFreeQuota: true` if a free quota covers it; otherwise `creditsDeducted` equals the live `credit_cost`.
-3. **Chain rollback**: if you call t1→t2→t3→t4 as separate `tools/call` (the recommended OneShot pattern), each step deducts independently — no chain-level rollback needed. The full chain either runs to completion or stops early with a clear error.
+3. **Chain failure handling**: if you call t1→t2→t3→t4 as separate `tools/call` (the recommended OneShot pattern), each step deducts independently. A failed step is auto-refunded; earlier successful steps keep their results and charges. Recovery = re-send only the failed step (reuse prior outputs) — never restart the whole chain from t1.
 4. **Live `credit_cost`**: numbers change. Always read `m2.get_user_credits.pricing[]` before any paid call.
 5. **No separate LLM charge**: `credit_cost` for t2 / t4 includes the LLM cost. There is no token line item.
 6. **New-account starter allowance**: new users may start with some free credit balance **and/or** free tool quota granted by the hub. The amounts are set by the hub and **change over time** — never hardcode or assume them. A brand-new user is **not** necessarily at zero. Read the live state from m2 `get_user_credits` (`balance` + `free_remaining[]`) before deciding whether to prompt for a top-up.

@@ -63,7 +63,7 @@ Two key flavors: **personal** (rate-limit exempt) and **agent** (subject to per-
 - **Protocol**: MCP `2024-11-05`
 - **License**: MIT
 - **Production**: [https://fortunehub.lighttune.com.au](https://fortunehub.lighttune.com.au)
-- **Disclaimer**: All fortune-telling results are for **entertainment purposes only**.
+- **Disclaimer**: All reading results are for **entertainment purposes only**.
 
 ## Repository Structure
 

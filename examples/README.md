@@ -47,6 +47,7 @@ only when it is backed by a runnable snippet below. No family file should duplic
 ## See also
 
 - [`../SKILL.md`](../SKILL.md) — protocol canonical source (14 tools, errors, billing, protocol version rules)
+- `../SKILL.md` frontmatter — agentskills-standard skill manifest (name / description / license / metadata.version)
 - [`../skill.yaml`](../skill.yaml) — marketplace manifest (name / version / transport / tools[])
 - [`../usage/instructions.md`](../usage/instructions.md) — paste-ready system-prompt block
 

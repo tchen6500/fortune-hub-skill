@@ -33,7 +33,7 @@
 
 ## R4 — Skipping m2 credit check before the paid chain
 
-**Risk**: An agent starts the t1→t2→t3→t4 chain without first calling m2 `get_user_credits`. Mid-chain, t2 or t4 returns `INSUFFICIENT_CREDITS` (HTTP 402), the chain stops at step 2 or 4, the user has already been charged for t1 (if no free quota), and the agent has no `pattern_result` / `year_analysis_result` to return. The agent has to refund in chat and restart — a poor user experience and a partial credit burn.
+**Risk**: An agent starts the t1→t2→t3→t4 chain without first calling m2 `get_user_credits`. Mid-chain, t2 or t4 returns `INSUFFICIENT_CREDITS` (HTTP 402), the chain stops at step 2 or 4, and the agent has no `pattern_result` / `year_analysis_result` to return. Charges for **failed** steps are auto-refunded by the hub, but earlier **successful** steps stay charged — so restarting blindly from t1 would double-charge the user for content they already received.
 
 **Mitigation**:
 - Always call m2 `get_user_credits` **before** t1 (the documentation's recommended pattern: m1 → m2 → t1 → t2 → t3 → t4).
